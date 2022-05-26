@@ -40,7 +40,7 @@ void main() {
     float width = max(abs(height1 - height2) / 2, 1);
 
     float line_col = peak(coord.y - height, width);
-    float dot_col = peak(coord.y - height1, 2);
+    float dot_col = peak(coord.y - height1, 1);
     float graduation = 0;
     if (indexb % 50 < indexa % 50)
       graduation = 0.1;

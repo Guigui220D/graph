@@ -8,7 +8,7 @@ void testFn(float * buffer, size_t size) {
     for (int i = 0; i < size; i++) {
         float x = (float)i / 1000.f;
         x *= 10;
-        //buffer[i] = sinf(x*x) / (x + 1);
+        //buffer[i] = cosf(x * x) * x * x;
         buffer[i] = (i / 50) % 3;
     }
 }
@@ -36,7 +36,10 @@ float lowerBound(const float * samples, size_t size) {
 }
 
 float gradPeriod(float span) {
-    return pow(10, floorf(log10f(span)));
+    float b10 = pow(10, floorf(log10f(span)));
+    if (span / b10 <= 3)
+        b10 /= 2;
+    return b10;
 }
 
 int main() {
@@ -67,7 +70,7 @@ int main() {
         return 1;
     }
 
-    sfVector2f canvas_size = { 1000, 1000 };
+    sfVector2f canvas_size = { 800, 600 };
 
     sfShader_setFloatUniform(graph_shader, "upperLimit", upper);
     sfShader_setFloatUniform(graph_shader, "lowerLimit", lower);
@@ -77,12 +80,18 @@ int main() {
 
     printf("Shader loading took %fs\n", sfTime_asSeconds(sfClock_restart(benchclock)));
 
-    sfRenderTexture* render_texture = sfRenderTexture_create(1000, 1000, sfFalse);
+    sfRenderTexture* render_texture = sfRenderTexture_create(800, 600, sfFalse);
 
     sfRectangleShape* canvas = sfRectangleShape_create();
     sfRectangleShape_setSize(canvas, canvas_size);
     sfRectangleShape_setFillColor(canvas, sfBlack);
     //sfRectangleShape_setPosition(canvas, canvas_pos);
+
+    sfFont* grad_font = sfFont_createFromFile("open-sans.regular.ttf");
+    sfText* grad_text = sfText_create();
+    sfText_setFont(grad_text, grad_font);
+    sfText_setCharacterSize(grad_text, 12);
+    char buffer[100];
 
     sfRenderStates states = { .blendMode = sfBlendAlpha, .transform = sfTransform_Identity, .texture = NULL, .shader = graph_shader };
     
@@ -91,6 +100,17 @@ int main() {
     sfRenderTexture_clear(render_texture, sfBlack);
     sfRenderTexture_drawRectangleShape(render_texture, canvas, NULL);
     sfRenderTexture_drawRectangleShape(render_texture, canvas, &states);
+    
+    float moving_grad = ceilf(lower / grad) * grad;
+    do {
+        sprintf(buffer, "%.2e", moving_grad);
+        sfText_setString(grad_text, buffer);
+        float actual_height = (1 - (moving_grad - lower) / (upper - lower)) * 500 + 50;
+        sfText_setPosition(grad_text, (sfVector2f){ 0, actual_height });
+        sfRenderTexture_drawText(render_texture, grad_text, NULL);
+        moving_grad += grad; 
+    } while (moving_grad < upper);
+    
     sfRenderTexture_display(render_texture);
 
     printf("Render took %fs\n", sfTime_asSeconds(sfClock_getElapsedTime(benchclock)));
@@ -101,7 +121,10 @@ int main() {
 
     sfImage_saveToFile(rendered, "render.png");
 
+
     sfImage_destroy(rendered);
+    sfText_destroy(grad_text);
+    sfFont_destroy(grad_font);
     sfRectangleShape_destroy(canvas);
     sfRenderTexture_destroy(render_texture);
     sfShader_destroy(graph_shader);
