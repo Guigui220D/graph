@@ -53,6 +53,8 @@ int main() {
     printf("Upper: %f, Lower: %f\n", upper, lower);
     printf("Grad: %f\n", grad);
 
+    sfClock* benchclock = sfClock_create();
+
     if (!sfShader_isAvailable()) {
         printf("Fatal: shader failed to initialize\n");
         return 1;
@@ -65,15 +67,17 @@ int main() {
         return 1;
     }
 
+    sfVector2f canvas_size = { 1000, 1000 };
+
     sfShader_setFloatUniform(graph_shader, "upperLimit", upper);
     sfShader_setFloatUniform(graph_shader, "lowerLimit", lower);
     sfShader_setFloatUniform(graph_shader, "gradPeriod", grad);
     sfShader_setFloatUniformArray(graph_shader, "data", samples, SIZE);
+    sfShader_setVec2Uniform(graph_shader, "resolution", canvas_size);
 
-    sfVector2f canvas_size = { 800, 600 };
-    //sfVector2f canvas_pos = { 100, 100};
+    printf("Shader loading took %fs\n", sfTime_asSeconds(sfClock_restart(benchclock)));
 
-    sfRenderTexture* render_texture = sfRenderTexture_create(800, 600, sfFalse);
+    sfRenderTexture* render_texture = sfRenderTexture_create(1000, 1000, sfFalse);
 
     sfRectangleShape* canvas = sfRectangleShape_create();
     sfRectangleShape_setSize(canvas, canvas_size);
@@ -81,12 +85,20 @@ int main() {
     //sfRectangleShape_setPosition(canvas, canvas_pos);
 
     sfRenderStates states = { .blendMode = sfBlendAlpha, .transform = sfTransform_Identity, .texture = NULL, .shader = graph_shader };
+    
+    sfClock_restart(benchclock);
+    
     sfRenderTexture_clear(render_texture, sfBlack);
     sfRenderTexture_drawRectangleShape(render_texture, canvas, NULL);
     sfRenderTexture_drawRectangleShape(render_texture, canvas, &states);
     sfRenderTexture_display(render_texture);
 
+    printf("Render took %fs\n", sfTime_asSeconds(sfClock_getElapsedTime(benchclock)));
+
     sfImage* rendered = sfTexture_copyToImage(sfRenderTexture_getTexture(render_texture));
+
+    printf("Render + copy to ram took %fs\n", sfTime_asSeconds(sfClock_restart(benchclock)));
+
     sfImage_saveToFile(rendered, "render.png");
 
     sfImage_destroy(rendered);

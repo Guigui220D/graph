@@ -4,6 +4,7 @@ uniform float upperLimit;
 uniform float lowerLimit;
 uniform float gradPeriod;
 uniform float data[1000];
+uniform vec2 resolution;
 
 out vec4 color;
 
@@ -17,10 +18,14 @@ float peak(float x, float width) {
 
 void main() {
   vec2 coord = gl_FragCoord.xy;
-  if (coord.x >= 50 && coord.x <= 750 && coord.y >= 50 && coord.y <= 550) {
+  float xmax = resolution.x - 50;
+  float ymax = resolution.y - 50;
+  float xmin = 50;
+  float ymin = 50;
+  if (coord.x >= xmin && coord.x <= xmax && coord.y >= ymin && coord.y <= ymax) {
 
-    int indexa = int(map(coord.x + 0, 50, 750, 0, 998));
-    int indexb = int(map(coord.x + 1, 50, 750, 0, 998));
+    int indexa = int(map(coord.x + 0, xmin, xmax, 0, 998));
+    int indexb = int(map(coord.x + 1, xmin, xmax, 0, 998));
 
     float avg1 = 0;
     for (int i = indexa; i < indexb; i++) {
@@ -28,8 +33,8 @@ void main() {
     }
     avg1 /= indexb - indexa;
 
-    float height1 = map(data[indexa], lowerLimit, upperLimit, 50, 550);
-    float height2 = map(data[indexb], lowerLimit, upperLimit, 50, 550);
+    float height1 = map(data[indexa], lowerLimit, upperLimit, ymin, ymax);
+    float height2 = map(data[indexb], lowerLimit, upperLimit, ymin, ymax);
 
     float height = (height1 + height2) / 2;
     float width = max(abs(height1 - height2) / 2, 1);
@@ -39,7 +44,8 @@ void main() {
     float graduation = 0;
     if (indexb % 50 < indexa % 50)
       graduation = 0.1;
-    if (mod(map(coord.y, 50, 550, lowerLimit, upperLimit), gradPeriod) < gradPeriod / 50)
+    // TODO: here gradPeriod / 100 is not ok to have 1px wide graduation
+    if (mod(map(coord.y, ymin, ymax, lowerLimit, upperLimit), gradPeriod) < gradPeriod / 100)
       graduation = 0.1;
 
     color = vec4(line_col + graduation, line_col - dot_col + graduation, graduation, 1);
@@ -47,7 +53,8 @@ void main() {
     color = vec4(vec3(0.2), 1);
 
     if (coord.x >= 25 && coord.x < 50) {
-      if (mod(map(coord.y, 50, 550, lowerLimit, upperLimit), gradPeriod) < gradPeriod / 50)
+      // TODO: same as above
+      if (mod(map(coord.y, ymin, ymax, lowerLimit, upperLimit), gradPeriod) < gradPeriod / 100)
         color = vec4(0, 1, 0, 1);
     }
   }
