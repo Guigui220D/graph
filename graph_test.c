@@ -9,7 +9,7 @@ void testFn(float * buffer, size_t size) {
         float x = (float)i / 1000.f;
         x *= 10;
         //buffer[i] = sinf(x*x) / (x + 1);
-        buffer[i] = (x > 5) ? 3 : 0;
+        buffer[i] = (i / 50) % 3;
     }
 }
 

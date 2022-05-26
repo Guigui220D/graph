@@ -1,0 +1,1 @@
+zig cc graph_test.c -I csfml/include -L csfml/lib/msvc -lcsfml-graphics

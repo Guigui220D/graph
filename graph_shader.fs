@@ -19,9 +19,8 @@ void main() {
   vec2 coord = gl_FragCoord.xy;
   if (coord.x >= 50 && coord.x <= 750 && coord.y >= 50 && coord.y <= 550) {
 
-    int indexa = int(map(coord.x + 0, 50, 750, 0, 997));
-    int indexb = int(map(coord.x + 1, 50, 750, 0, 997));
-    int indexc = int(map(coord.x + 2, 50, 750, 0, 997));
+    int indexa = int(map(coord.x + 0, 50, 750, 0, 998));
+    int indexb = int(map(coord.x + 1, 50, 750, 0, 998));
 
     float avg1 = 0;
     for (int i = indexa; i < indexb; i++) {
@@ -29,14 +28,8 @@ void main() {
     }
     avg1 /= indexb - indexa;
 
-    float avg2 = 0;
-    for (int i = indexb; i < indexc; i++) {
-      avg2 += data[i];
-    }
-    avg2 /= indexc - indexb;
-
-    float height1 = map(avg1, lowerLimit, upperLimit, 50, 550);
-    float height2 = map(avg2, lowerLimit, upperLimit, 50, 550);
+    float height1 = map(data[indexa], lowerLimit, upperLimit, 50, 550);
+    float height2 = map(data[indexb], lowerLimit, upperLimit, 50, 550);
 
     float height = (height1 + height2) / 2;
     float width = max(abs(height1 - height2) / 2, 1);
