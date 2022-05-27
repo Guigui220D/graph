@@ -1,8 +1,13 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
-#include <SFML/Graphics.h>
-#include <SFML/System.h>
-#include <SFML/Window.h>
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+
+void framebuffer_size_callback(GLFWwindow* window, int width, int height); 
+
+volatile unsigned int shaderProgram = 0;
+unsigned int resolutionUniform;
 
 void testFn(float * buffer, size_t size) {
     srand(time(NULL));
@@ -47,7 +52,8 @@ float gradPeriod(float span) {
     return b10;
 }
 
-int main() {
+int main(int argc, char* argv[]) 
+{
     const size_t SIZE = 1000;
     float samples[SIZE];
 
@@ -61,78 +67,174 @@ int main() {
     printf("Upper: %f, Lower: %f\n", upper, lower);
     printf("Grad: %f\n", grad);
 
-    sfClock* benchclock = sfClock_create();
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    if (!sfShader_isAvailable()) {
-        printf("Fatal: shader failed to initialize\n");
-        return 1;
+    GLFWwindow* window = glfwCreateWindow(800, 600, "Graph window", NULL, NULL);
+    if (window == NULL)
+    {
+        printf("Failed to create GLFW window");
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window);
+
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);  
+
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+        printf("Failed to initialize GLAD");
+        return -1;
+    }  
+
+    glViewport(0, 0, 800, 600);
+
+    // Create Vertex Array Object
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    // Create a Vertex Buffer Object and copy the vertex data to it
+    GLuint vbo;
+    glGenBuffers(1, &vbo);
+
+    GLfloat vertices[] = {
+        -1.f,  1.f,
+         1.f,  1.f,
+         1.f, -1.f,
+        -1.f, -1.f,
+    };
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // Create an element array
+    GLuint ebo;
+    glGenBuffers(1, &ebo);
+
+    GLuint elements[] = {
+        0, 1, 2,
+        2, 3, 0
+    };
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW);
+
+    const char *vertexShaderSource = 
+    "#version 330 core\n"
+    "layout (location = 0) in vec3 position;\n"
+    "void main()\n"
+    "{\n"
+    "   gl_Position = vec4(position.x, position.y, position.z, 1.0);\n"
+    "}\0"
+    ;
+    unsigned int vertexShader;
+    vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+    glCompileShader(vertexShader);
+
+    int success;
+    char infoLog[512];
+    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+
+    if (!success)
+    {
+        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+        printf("ERROR::SHADER::VERTEX::COMPILATION_FAILED\n%s\n", infoLog);
+        return -1;
     }
 
-    sfShader* graph_shader = sfShader_createFromFile(NULL, NULL, "graph_shader.fs");
+    char * buffer = 0;
+    long length;
+    FILE * f = fopen("graph_shader.fs", "rb");
 
-    if (!graph_shader) {
-        printf("Fatal: shader failed to initialize\n");
-        return 1;
+    if (!f) {
+        printf("Could not load shader file\n");
+        return -1;
+    }
+    
+    fseek(f, 0, SEEK_END);
+    length = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    buffer = malloc(length + 1);
+    if (!buffer) {
+        printf("Could not load shader file\n");
+        return -1;
+    }
+    fread(buffer, 1, length, f);
+    fclose(f);
+    buffer[length] = '\0';
+
+    unsigned int fragmentShader;
+    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, &buffer, NULL);
+    glCompileShader(fragmentShader);
+
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+
+    if (!success)
+    {
+        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+        printf("ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n%s\n", infoLog);
     }
 
-    sfVector2f canvas_size = { 800, 600 };
+    shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+    glLinkProgram(shaderProgram);
 
-    sfShader_setFloatUniform(graph_shader, "upperLimit", upper);
-    sfShader_setFloatUniform(graph_shader, "lowerLimit", lower);
-    sfShader_setFloatUniform(graph_shader, "gradPeriod", grad);
-    sfShader_setFloatUniformArray(graph_shader, "data", samples, SIZE);
-    sfShader_setVec2Uniform(graph_shader, "resolution", canvas_size);
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
 
-    printf("Shader loading took %fs\n", sfTime_asSeconds(sfClock_restart(benchclock)));
+    if (!success)
+    {
+        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+        printf("ERROR::SHADER::PROGRAM::LINKING_FAILED\n%s\n", infoLog);
+    }
 
-    sfRenderTexture* render_texture = sfRenderTexture_create(800, 600, sfFalse);
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader); 
 
-    sfRectangleShape* canvas = sfRectangleShape_create();
-    sfRectangleShape_setSize(canvas, canvas_size);
-    sfRectangleShape_setFillColor(canvas, sfBlack);
-    //sfRectangleShape_setPosition(canvas, canvas_pos);
+    free(buffer);
 
-    sfFont* grad_font = sfFont_createFromFile("open-sans.regular.ttf");
-    sfText* grad_text = sfText_create();
-    sfText_setFont(grad_text, grad_font);
-    sfText_setCharacterSize(grad_text, 12);
-    char buffer[100];
+    glUseProgram(shaderProgram);
 
-    sfRenderStates states = { .blendMode = sfBlendAlpha, .transform = sfTransform_Identity, .texture = NULL, .shader = graph_shader };
-    
-    sfClock_restart(benchclock);
-    
-    sfRenderTexture_clear(render_texture, sfBlack);
-    sfRenderTexture_drawRectangleShape(render_texture, canvas, NULL);
-    sfRenderTexture_drawRectangleShape(render_texture, canvas, &states);
-    
-    float moving_grad = ceilf(lower / grad) * grad;
-    do {
-        sprintf(buffer, "%.2e", moving_grad);
-        sfText_setString(grad_text, buffer);
-        float actual_height = (1 - (moving_grad - lower) / (upper - lower)) * 500 + 50;
-        sfText_setPosition(grad_text, (sfVector2f){ 0, actual_height });
-        sfRenderTexture_drawText(render_texture, grad_text, NULL);
-        moving_grad += grad; 
-    } while (moving_grad < upper);
-    
-    sfRenderTexture_display(render_texture);
+    resolutionUniform = glGetUniformLocation(shaderProgram, "resolution");
+    glUniform2f(resolutionUniform, 800, 600);
+    glUniform1f(glGetUniformLocation(shaderProgram, "upperLimit"), upper);
+    glUniform1f(glGetUniformLocation(shaderProgram, "lowerLimit"), lower);
+    glUniform1f(glGetUniformLocation(shaderProgram, "gradPeriod"), grad);
+    glUniform1fv(glGetUniformLocation(shaderProgram, "data"), 1000, samples);
 
-    printf("Render took %fs\n", sfTime_asSeconds(sfClock_getElapsedTime(benchclock)));
+    // Specify the layout of the vertex data
+    GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
+    glEnableVertexAttribArray(posAttrib);
+    glVertexAttribPointer(posAttrib, 4, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), 0);
 
-    sfImage* rendered = sfTexture_copyToImage(sfRenderTexture_getTexture(render_texture));
+    while(!glfwWindowShouldClose(window))
+    {
+        glClearColor(1.f, 0.f, 1.f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
 
-    printf("Render + copy to ram took %fs\n", sfTime_asSeconds(sfClock_restart(benchclock)));
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-    sfImage_saveToFile(rendered, "render.png");
+        glfwSwapBuffers(window);
+        glfwPollEvents();    
+    }
 
+    shaderProgram = 0;
 
-    sfImage_destroy(rendered);
-    sfText_destroy(grad_text);
-    sfFont_destroy(grad_font);
-    sfRectangleShape_destroy(canvas);
-    sfRenderTexture_destroy(render_texture);
-    sfShader_destroy(graph_shader);
+    glfwTerminate();
+
     return 0;
 }
 
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) 
+{
+    glViewport(0, 0, width, height);
+
+    if (shaderProgram != 0 && resolutionUniform != 0) {
+        glUniform2f(resolutionUniform, width, height);
+    }
+} 

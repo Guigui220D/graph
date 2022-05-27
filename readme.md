@@ -3,5 +3,3 @@
 ## Don't mind me
 
 This is really just me experimenting
-
-![Test graph](render.png)
