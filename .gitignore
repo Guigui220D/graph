@@ -1,6 +1,8 @@
 graph_test
 .vscode
 csfml/
+glfw-3.3.7/
+glad/
 *.dll
 *.exe
 *.pdb
