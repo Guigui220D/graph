@@ -1,4 +1,4 @@
-#version 130
+#version 330 core
 
 uniform float upperLimit;
 uniform float lowerLimit;

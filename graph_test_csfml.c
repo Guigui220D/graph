@@ -122,7 +122,6 @@ int main() {
 
     sfImage_saveToFile(rendered, "render.png");
 
-
     sfImage_destroy(rendered);
     sfText_destroy(grad_text);
     sfFont_destroy(grad_font);
