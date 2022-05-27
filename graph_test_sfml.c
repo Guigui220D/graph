@@ -5,11 +5,16 @@
 #include <SFML/Window.h>
 
 void testFn(float * buffer, size_t size) {
+    srand(time(NULL));
+    int r = 0;
     for (int i = 0; i < size; i++) {
+        if (i % 20 == 0) 
+            r = rand();
         float x = (float)i / 1000.f;
         x *= 10;
         //buffer[i] = cosf(x * x) * x * x;
-        buffer[i] = (i / 50) % 3;
+        buffer[i] = r;
+        //buffer[i] = (i / 50) % 3;
     }
 }
 

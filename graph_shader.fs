@@ -48,6 +48,10 @@ void main() {
     if (mod(map(coord.y, ymin, ymax, lowerLimit, upperLimit), gradPeriod) < gradPeriod / 100)
       graduation = 0.1;
 
+    if (coord.y < height && (mod(coord.x + coord.y, 20) < 10)) {
+      graduation += 0.1;
+    }
+
     color = vec4(line_col + graduation, line_col - dot_col + graduation, graduation, 1);
   } else {
     color = vec4(vec3(0.2), 1);
