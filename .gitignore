@@ -3,6 +3,9 @@ graph_test
 csfml/
 glfw-3.3.7/
 glad/
+zig-out/
+zig-cache/
+NUL
 *.dll
 *.exe
 *.pdb
