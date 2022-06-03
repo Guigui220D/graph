@@ -24,12 +24,20 @@ pub fn build(b: *std.build.Builder) void {
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&main_tests.step);
 
-    const ctest = b.addSystemCommand(&[_][]const u8{"compile.bat"});
+    const ctest = b.addExecutable("cexe", null);
+    ctest.linkLibC();
+    ctest.addCSourceFile("src/test.c", &[_][]const u8{});
+    ctest.addLibPath("zig-out/lib");
+    ctest.addLibPath("glfw-3.3.7/lib-mingw-w64");
+    ctest.linkSystemLibrary("graph");
+    ctest.linkSystemLibrary("glfw3");
+    ctest.linkSystemLibrary("opengl32");
+    if (@import("builtin").os.tag == .windows)
+        ctest.linkSystemLibrary("gdi32");
+    ctest.setBuildMode(mode);
+    //ctest.install();
     ctest.step.dependOn(&lib.install_step.?.step);
 
-    const cexe = b.addSystemCommand(&[_][]const u8{"a.exe"});
-    cexe.step.dependOn(&ctest.step);
-
     const run_step = b.step("run", "Run the c test program");
-    run_step.dependOn(&cexe.step);
+    run_step.dependOn(&ctest.run().step);
 }

@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <math.h>
-#include "src/header.h"
+#include "header.h"
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -53,7 +53,6 @@ int main(int argc, char* argv[])
     }
     sleep(5);
     inog_destroy_context(context2);
-    sleep(2);
     inog_wait_destroy_context(context);
 
     inog_deinit_resources();
