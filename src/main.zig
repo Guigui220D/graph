@@ -79,8 +79,7 @@ fn windowThreadFunction(context: *InogGraph) void {
         return;
     }
 
-    std.log.debug("Initializing OpenGL", .{});
-
+    std.log.debug("Preparing OpenGL stuff", .{});
     c.glViewport(0, 0, 800, 600);
 
     var vao: c.GLuint = undefined;
@@ -90,19 +89,18 @@ fn windowThreadFunction(context: *InogGraph) void {
     var vbo: c.GLuint = undefined;
     c.glGenBuffers(1, &vbo);
     c.glBindBuffer(c.GL_ARRAY_BUFFER, vbo);
-    c.glBufferData(c.GL_ARRAY_BUFFER, quad_vertices.len, &quad_vertices, c.GL_STATIC_DRAW);
+    c.glBufferData(c.GL_ARRAY_BUFFER, @sizeOf(@TypeOf(quad_vertices)), &quad_vertices, c.GL_STATIC_DRAW);
 
     var ebo: c.GLuint = undefined;
     c.glGenBuffers(1, &ebo);
     c.glBindBuffer(c.GL_ELEMENT_ARRAY_BUFFER, ebo);
-    c.glBufferData(c.GL_ELEMENT_ARRAY_BUFFER, quad_indices.len, &quad_indices, c.GL_STATIC_DRAW);
+    c.glBufferData(c.GL_ELEMENT_ARRAY_BUFFER, @sizeOf(@TypeOf(quad_indices)), &quad_indices, c.GL_STATIC_DRAW);
 
     var vertex_shader = c.glCreateShader(c.GL_VERTEX_SHADER);
     c.glShaderSource(vertex_shader, 1, @ptrCast([*]const[*]const u8, &vertex_shader_source), null);
     c.glCompileShader(vertex_shader);
     c.glGetShaderiv(vertex_shader, c.GL_COMPILE_STATUS, &success);
     if (success == 0) {
-        // TODO: log message
         c.glGetShaderInfoLog(vertex_shader, 512, null, &log_buf);
         std.log.err("Failed to compile vertex shader:\n{s}", .{log_buf});
         return;
@@ -141,7 +139,6 @@ fn windowThreadFunction(context: *InogGraph) void {
     //TODO: modify shader to tolerate more than 1000 samples
     c.glUniform1fv(c.glGetUniformLocation(shader_program, "data"), @intCast(c_int, context.data.len), context.data.ptr);
 
-    // Specify the layout of the vertex data
     var pos_attrib = @intCast(c_uint, c.glGetAttribLocation(shader_program, "position"));
     c.glEnableVertexAttribArray(pos_attrib);
     c.glVertexAttribPointer(pos_attrib, 4, c.GL_FLOAT, c.GL_FALSE, 2 * @sizeOf(c.GLfloat), null);
@@ -171,6 +168,14 @@ export fn inog_destroy_context(context: ?*InogGraph) void {
     } else std.log.warn("No context to destroy (null pointer)", .{});
 }
 
+export fn inog_wait_destroy_context(context: ?*InogGraph) void {
+    if (context) |cont| {
+        cont.thread.join();
+        std.heap.c_allocator.free(cont.data);
+        std.heap.c_allocator.destroy(cont);
+    } else std.log.warn("No context to destroy (null pointer)", .{});
+}
+
 fn adjustBounds(lower: *f32, upper: *f32) void {
     const diff = upper.* - lower.*;
     upper.* += diff / 10;
@@ -178,8 +183,10 @@ fn adjustBounds(lower: *f32, upper: *f32) void {
 }
 
 fn calcGradPeriod(span: f32) f32 {
-    // TODO
-    return span / 100;
+    var b10 = std.math.pow(f32, 10, std.math.floor(std.math.log10(span)));
+    if (span / b10 <= 3)
+        b10 /= 2;
+    return b10;
 }
 
 const quad_vertices = [_]f32{

@@ -41,12 +41,20 @@ int main(int argc, char* argv[])
     }
 
     void* context = inog_make_context(samples1, SIZE);
+    if (!context) {
+        printf("Inog failed to make context\n");
+        return -1;
+    }
     sleep(2);
     void* context2 = inog_make_context(samples2, SIZE);
+    if (!context2) {
+        printf("Inog failed to make context\n");
+        return -1;
+    }
     sleep(5);
     inog_destroy_context(context2);
     sleep(2);
-    inog_destroy_context(context);
+    inog_wait_destroy_context(context);
 
     inog_deinit_resources();
     return 0;
